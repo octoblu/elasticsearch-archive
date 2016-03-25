@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/coreos/go-semver/semver"
 	"github.com/fatih/color"
+	"github.com/octoblu/elasticsearch-archive/elasticsearch"
 	De "github.com/tj/go-debug"
 )
 
@@ -23,52 +21,54 @@ func main() {
 	app.Action = run
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:   "example, e",
-			EnvVar: "ELASTICSEARCH_ARCHIVE_EXAMPLE",
+			Name:   "expression, e",
+			EnvVar: "ELASTICSEARCH_ARCHIVE_EXPRESSION",
+			Usage:  "Expression to snapshot. '2016-03-12' will create a snapshot called 'auto-snapshot-2016-03-12' with every index containing 2016-03-12 in its name",
+		},
+		cli.StringFlag{
+			Name:   "repository, r",
+			EnvVar: "ELASTICSEARCH_ARCHIVE_REPOSITORY",
 			Usage:  "Example string flag",
+		},
+		cli.StringFlag{
+			Name:   "uri, u",
+			EnvVar: "ELASTICSEARCH_ARCHIVE_URI",
+			Usage:  "Elasticsearch uri",
 		},
 	}
 	app.Run(os.Args)
 }
 
 func run(context *cli.Context) {
-	example := getOpts(context)
+	expression, repository, uri := getOpts(context)
 
-	sigTerm := make(chan os.Signal)
-	signal.Notify(sigTerm, syscall.SIGTERM)
-
-	sigTermReceived := false
-
-	go func() {
-		<-sigTerm
-		fmt.Println("SIGTERM received, waiting to exit")
-		sigTermReceived = true
-	}()
-
-	for {
-		if sigTermReceived {
-			fmt.Println("I'll be back.")
-			os.Exit(0)
-		}
-
-		debug("elasticsearch-archive.loop: %v", example)
-		time.Sleep(1 * time.Second)
+	client := elasticsearch.New(uri, repository)
+	if err := client.Snapshot(expression); err != nil {
+		log.Fatalln("Error during snapshot:", err.Error())
 	}
 }
 
-func getOpts(context *cli.Context) string {
-	example := context.String("example")
+func getOpts(context *cli.Context) (string, string, string) {
+	expression := context.String("expression")
+	repository := context.String("repository")
+	uri := context.String("uri")
 
-	if example == "" {
+	if expression == "" || repository == "" || uri == "" {
 		cli.ShowAppHelp(context)
 
-		if example == "" {
-			color.Red("  Missing required flag --example or ELASTICSEARCH_ARCHIVE_EXAMPLE")
+		if expression == "" {
+			color.Red("  Missing required flag --expression or ELASTICSEARCH_ARCHIVE_EXPRESSION")
+		}
+		if repository == "" {
+			color.Red("  Missing required flag --repository or ELASTICSEARCH_ARCHIVE_REPOSITORY")
+		}
+		if uri == "" {
+			color.Red("  Missing required flag --uri or ELASTICSEARCH_ARCHIVE_URI")
 		}
 		os.Exit(1)
 	}
 
-	return example
+	return expression, repository, uri
 }
 
 func version() string {
