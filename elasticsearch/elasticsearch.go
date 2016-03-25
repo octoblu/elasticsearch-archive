@@ -43,7 +43,7 @@ func (client *Client) Snapshot(expression string) error {
 			return fmt.Errorf("Error parsing body of non 200 response on snapshot create: %v, %v", response.StatusCode, err.Error())
 		}
 
-		return fmt.Errorf("Received non 201 status code creating snapshot: %v\n%v", response.StatusCode, string(body))
+		return fmt.Errorf("Received non 200 status code creating snapshot: %v\n%v", response.StatusCode, string(body))
 	}
 
 	return nil

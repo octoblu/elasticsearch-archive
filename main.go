@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/coreos/go-semver/semver"
@@ -15,6 +16,8 @@ import (
 var debug = De.Debug("elasticsearch-archive:main")
 
 func main() {
+	yesterday := time.Now().AddDate(0, 0, -1)
+
 	app := cli.NewApp()
 	app.Name = "elasticsearch-archive"
 	app.Version = version()
@@ -23,7 +26,8 @@ func main() {
 		cli.StringFlag{
 			Name:   "expression, e",
 			EnvVar: "ELASTICSEARCH_ARCHIVE_EXPRESSION",
-			Usage:  "Expression to snapshot. '2016-03-12' will create a snapshot called 'auto-snapshot-2016-03-12' with every index containing 2016-03-12 in its name",
+			Usage:  "Expression to snapshot. '2016-03-12' will create a snapshot called 'auto-snapshot-2016-03-12' with every index containing 2016-03-12 in its name. Defaults to yesterday",
+			Value:  fmt.Sprintf("%d-%02d-%02d", yesterday.Year(), yesterday.Month(), yesterday.Day()),
 		},
 		cli.StringFlag{
 			Name:   "repository, r",
@@ -53,12 +57,9 @@ func getOpts(context *cli.Context) (string, string, string) {
 	repository := context.String("repository")
 	uri := context.String("uri")
 
-	if expression == "" || repository == "" || uri == "" {
+	if repository == "" || uri == "" {
 		cli.ShowAppHelp(context)
 
-		if expression == "" {
-			color.Red("  Missing required flag --expression or ELASTICSEARCH_ARCHIVE_EXPRESSION")
-		}
 		if repository == "" {
 			color.Red("  Missing required flag --repository or ELASTICSEARCH_ARCHIVE_REPOSITORY")
 		}
@@ -66,6 +67,9 @@ func getOpts(context *cli.Context) (string, string, string) {
 			color.Red("  Missing required flag --uri or ELASTICSEARCH_ARCHIVE_URI")
 		}
 		os.Exit(1)
+	}
+
+	if expression == "" {
 	}
 
 	return expression, repository, uri
